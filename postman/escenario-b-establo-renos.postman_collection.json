@@ -1,0 +1,623 @@
+{
+  "info": {
+    "name": "Parcial 1 · Escenario B · Establo de Renos y Mantenimiento (Santiago Castro)",
+    "description": "Colección de pruebas completa para el Escenario B (Establo de renos y mantenimiento del terreno).\n\nAntes de ejecutar:\n1. Levanta MySQL y corre: php artisan migrate:fresh --seed\n2. Levanta el Mock SOAP: php -S 127.0.0.1:4001 mock-soap/server.php\n3. Levanta la API Laravel: php artisan serve\n4. Ajusta las variables de colección token_jefe y token_ayudante para que coincidan con tu .env local.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "base_url", "value": "http://127.0.0.1:8000" },
+    { "key": "token_jefe", "value": "PON_AQUI_TU_API_TOKEN_JEFE_ESTABLO" },
+    { "key": "token_ayudante", "value": "PON_AQUI_TU_API_TOKEN_AYUDANTE" },
+    { "key": "reno_creado_id", "value": "11" },
+    { "key": "reno_decimo_id", "value": "12" },
+    { "key": "mantenimiento_pista_id", "value": "1" }
+  ],
+  "item": [
+    {
+      "name": "1. Seguridad (401 y 403)",
+      "item": [
+        {
+          "name": "401 · Crear reno SIN token",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Responde 401 Unauthorized', () => pm.response.to.have.status(401));",
+                  "const j = pm.response.json();",
+                  "pm.test('Formato estándar de error', () => {",
+                  "  pm.expect(j).to.have.all.keys('codigo', 'mensaje', 'detalles', 'timestamp', 'ruta');",
+                  "  pm.expect(j.codigo).to.eql('NO_AUTENTICADO');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Accept", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nombre\": \"Rodolfo\",\n  \"edad\": 5,\n  \"nivelEnergia\": 98\n}"
+            },
+            "url": "{{base_url}}/api/renos"
+          }
+        },
+        {
+          "name": "403 · Crear reno con rol AYUDANTE (rol insuficiente)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Responde 403 Forbidden', () => pm.response.to.have.status(403));",
+                  "const j = pm.response.json();",
+                  "pm.test('Código ROL_INSUFICIENTE', () => pm.expect(j.codigo).to.eql('ROL_INSUFICIENTE'));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token_ayudante}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nombre\": \"Rodolfo\",\n  \"edad\": 5,\n  \"nivelEnergia\": 98\n}"
+            },
+            "url": "{{base_url}}/api/renos"
+          }
+        }
+      ]
+    },
+    {
+      "name": "2. Renos · CRUD, Validaciones y Reglas 1, 2 y 5",
+      "item": [
+        {
+          "name": "201 · Crear reno exitoso (Rodolfo)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Responde 201 Created', () => pm.response.to.have.status(201));",
+                  "const j = pm.response.json();",
+                  "pm.collectionVariables.set('reno_creado_id', j.id);",
+                  "pm.test('Estado inicial DISPONIBLE', () => pm.expect(j.estado).to.eql('DISPONIBLE'));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token_jefe}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nombre\": \"Rodolfo\",\n  \"edad\": 5,\n  \"nivelEnergia\": 98\n}"
+            },
+            "url": "{{base_url}}/api/renos"
+          }
+        },
+        {
+          "name": "400 · Crear reno con entrada inválida (edad > 25, energía > 100)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Responde 400 Bad Request', () => pm.response.to.have.status(400));",
+                  "const j = pm.response.json();",
+                  "pm.test('Formato estándar con detalles', () => {",
+                  "  pm.expect(j.codigo).to.eql('ENTRADA_INVALIDA');",
+                  "  pm.expect(j.detalles.length).to.be.above(0);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token_jefe}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nombre\": \"\",\n  \"edad\": 40,\n  \"nivelEnergia\": 150\n}"
+            },
+            "url": "{{base_url}}/api/renos"
+          }
+        },
+        {
+          "name": "200 · Listar renos (filtro ?estado=DISPONIBLE)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Responde 200 OK', () => pm.response.to.have.status(200));",
+                  "pm.test('Retorna arreglo', () => pm.expect(pm.response.json()).to.be.an('array'));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Accept", "value": "application/json" }],
+            "url": "{{base_url}}/api/renos?estado=DISPONIBLE"
+          }
+        },
+        {
+          "name": "200 · Ver detalle de reno existente",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Responde 200 OK', () => pm.response.to.have.status(200));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Accept", "value": "application/json" }],
+            "url": "{{base_url}}/api/renos/{{reno_creado_id}}"
+          }
+        },
+        {
+          "name": "404 · Ver detalle de reno inexistente",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Responde 404 Not Found', () => pm.response.to.have.status(404));",
+                  "pm.test('Código RENO_NO_ENCONTRADO', () => pm.expect(pm.response.json().codigo).to.eql('RENO_NO_ENCONTRADO'));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Accept", "value": "application/json" }],
+            "url": "{{base_url}}/api/renos/9999"
+          }
+        },
+        {
+          "name": "200 · Actualizar datos del reno (PUT)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Responde 200 OK', () => pm.response.to.have.status(200));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token_jefe}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nombre\": \"Rodolfo\",\n  \"edad\": 6,\n  \"nivelEnergia\": 99,\n  \"estado\": \"DISPONIBLE\"\n}"
+            },
+            "url": "{{base_url}}/api/renos/{{reno_creado_id}}"
+          }
+        },
+        {
+          "name": "409 · Regla 1 · Asignar reno con energía < 70 (Trueno id=9)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Responde 409 Conflict', () => pm.response.to.have.status(409));",
+                  "pm.test('Código ENERGIA_INSUFICIENTE', () => pm.expect(pm.response.json().codigo).to.eql('ENERGIA_INSUFICIENTE'));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token_jefe}}" }
+            ],
+            "url": "{{base_url}}/api/renos/9/asignacion"
+          }
+        },
+        {
+          "name": "200 · Reglas 1 y 2 · Asignar 9no reno al vuelo (Rodolfo)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Responde 200 OK', () => pm.response.to.have.status(200));",
+                  "pm.test('Estado ASIGNADO_VUELO', () => pm.expect(pm.response.json().estado).to.eql('ASIGNADO_VUELO'));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token_jefe}}" }
+            ],
+            "url": "{{base_url}}/api/renos/{{reno_creado_id}}/asignacion"
+          }
+        },
+        {
+          "name": "201 · Crear reno extra (Relampago) para probar cupo de 9",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Responde 201 Created', () => pm.response.to.have.status(201));",
+                  "pm.collectionVariables.set('reno_decimo_id', pm.response.json().id);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token_jefe}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nombre\": \"Relampago\",\n  \"edad\": 4,\n  \"nivelEnergia\": 92\n}"
+            },
+            "url": "{{base_url}}/api/renos"
+          }
+        },
+        {
+          "name": "409 · Regla 2 · Asignar décimo reno al vuelo (cupo completo)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Responde 409 Conflict', () => pm.response.to.have.status(409));",
+                  "pm.test('Código CUPO_VUELO_COMPLETO', () => pm.expect(pm.response.json().codigo).to.eql('CUPO_VUELO_COMPLETO'));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token_jefe}}" }
+            ],
+            "url": "{{base_url}}/api/renos/{{reno_decimo_id}}/asignacion"
+          }
+        },
+        {
+          "name": "409 · Regla 5 · Intentar eliminar reno ASIGNADO_VUELO",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Responde 409 Conflict', () => pm.response.to.have.status(409));",
+                  "pm.test('Código RENO_ASIGNADO_NO_ELIMINABLE', () => pm.expect(pm.response.json().codigo).to.eql('RENO_ASIGNADO_NO_ELIMINABLE'));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token_jefe}}" }
+            ],
+            "url": "{{base_url}}/api/renos/{{reno_creado_id}}"
+          }
+        },
+        {
+          "name": "204 · Eliminar reno DISPONIBLE (Relampago)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Responde 204 No Content', () => pm.response.to.have.status(204));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [
+              { "key": "Accept", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{token_jefe}}" }
+            ],
+            "url": "{{base_url}}/api/renos/{{reno_decimo_id}}"
+          }
+        }
+      ]
+    },
+    {
+      "name": "3. Mantenimientos · Reglas 3 y 4 + Integración SOAP",
+      "item": [
+        {
+          "name": "201 · Programar mantenimiento en PISTA_DESPEGUE (SOAP DESPEJADO)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Responde 201 Created', () => pm.response.to.have.status(201));",
+                  "const j = pm.response.json();",
+                  "pm.collectionVariables.set('mantenimiento_pista_id', j.id);",
+                  "pm.test('Estado PROGRAMADO', () => pm.expect(j.estado).to.eql('PROGRAMADO'));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Accept", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"zona\": \"PISTA_DESPEGUE\",\n  \"tipo\": \"LIMPIEZA_NIEVE\",\n  \"fechaProgramada\": \"2026-12-20\",\n  \"responsable\": \"Elfo Bernardo\"\n}"
+            },
+            "url": "{{base_url}}/api/mantenimientos"
+          }
+        },
+        {
+          "name": "422 · Regla 4 · PISTA_DESPEGUE con VENTISCA (fecha 2026-12-22)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Responde 422 Unprocessable Entity', () => pm.response.to.have.status(422));",
+                  "pm.test('Código CLIMA_ADVERSO_VENTISCA', () => pm.expect(pm.response.json().codigo).to.eql('CLIMA_ADVERSO_VENTISCA'));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Accept", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"zona\": \"PISTA_DESPEGUE\",\n  \"tipo\": \"LIMPIEZA_NIEVE\",\n  \"fechaProgramada\": \"2026-12-22\",\n  \"responsable\": \"Elfo Carlos\"\n}"
+            },
+            "url": "{{base_url}}/api/mantenimientos"
+          }
+        },
+        {
+          "name": "202 · SOAP Caído (soap:Fault con fecha 2026-12-24 -> PENDIENTE_CLIMA)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Responde 202 Accepted (nunca 500)', () => pm.response.to.have.status(202));",
+                  "const j = pm.response.json();",
+                  "pm.test('Estado PENDIENTE_CLIMA', () => pm.expect(j.estado).to.eql('PENDIENTE_CLIMA'));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Accept", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"zona\": \"PISTA_DESPEGUE\",\n  \"tipo\": \"INSPECCION\",\n  \"fechaProgramada\": \"2026-12-24\",\n  \"responsable\": \"Elfo Mateo\"\n}"
+            },
+            "url": "{{base_url}}/api/mantenimientos"
+          }
+        },
+        {
+          "name": "202 · SOAP Timeout > 3s (fecha 2026-12-23 -> PENDIENTE_CLIMA)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Responde 202 Accepted tras reintentos', () => pm.response.to.have.status(202));",
+                  "pm.test('Estado PENDIENTE_CLIMA', () => pm.expect(pm.response.json().estado).to.eql('PENDIENTE_CLIMA'));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Accept", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"zona\": \"PISTA_DESPEGUE\",\n  \"tipo\": \"LIMPIEZA_NIEVE\",\n  \"fechaProgramada\": \"2026-12-23\",\n  \"responsable\": \"Elfo Lucas\"\n}"
+            },
+            "url": "{{base_url}}/api/mantenimientos"
+          }
+        },
+        {
+          "name": "200 · Listar mantenimientos con filtro ?zona=PISTA_DESPEGUE",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Responde 200 OK', () => pm.response.to.have.status(200));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Accept", "value": "application/json" }],
+            "url": "{{base_url}}/api/mantenimientos?zona=PISTA_DESPEGUE"
+          }
+        },
+        {
+          "name": "409 · Regla 3 · Transición inválida (PROGRAMADO -> COMPLETADO)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Responde 409 Conflict', () => pm.response.to.have.status(409));",
+                  "pm.test('Código TRANSICION_INVALIDA', () => pm.expect(pm.response.json().codigo).to.eql('TRANSICION_INVALIDA'));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Accept", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"estado\": \"COMPLETADO\"\n}"
+            },
+            "url": "{{base_url}}/api/mantenimientos/{{mantenimiento_pista_id}}/estado"
+          }
+        },
+        {
+          "name": "200 · Regla 3 · Transición válida (PROGRAMADO -> EN_CURSO)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Responde 200 OK', () => pm.response.to.have.status(200));",
+                  "pm.test('Estado EN_CURSO', () => pm.expect(pm.response.json().estado).to.eql('EN_CURSO'));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Accept", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"estado\": \"EN_CURSO\"\n}"
+            },
+            "url": "{{base_url}}/api/mantenimientos/{{mantenimiento_pista_id}}/estado"
+          }
+        },
+        {
+          "name": "200 · Regla 3 · Transición válida (EN_CURSO -> COMPLETADO)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Responde 200 OK', () => pm.response.to.have.status(200));",
+                  "pm.test('Estado COMPLETADO', () => pm.expect(pm.response.json().estado).to.eql('COMPLETADO'));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Accept", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"estado\": \"COMPLETADO\"\n}"
+            },
+            "url": "{{base_url}}/api/mantenimientos/{{mantenimiento_pista_id}}/estado"
+          }
+        }
+      ]
+    },
+    {
+      "name": "4. Extra Escenario B · Resumen de Vuelo",
+      "item": [
+        {
+          "name": "200 · GET /api/vuelo/resumen (9 renos + pista COMPLETADO -> vueloListo: true)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Responde 200 OK', () => pm.response.to.have.status(200));",
+                  "const j = pm.response.json();",
+                  "pm.test('Vuelo listo con 9 renos y pista completada', () => {",
+                  "  pm.expect(j.totalRenosAsignados).to.eql(9);",
+                  "  pm.expect(j.pistaConMantenimientoCompletado).to.eql(true);",
+                  "  pm.expect(j.vueloListo).to.eql(true);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Accept", "value": "application/json" }],
+            "url": "{{base_url}}/api/vuelo/resumen"
+          }
+        }
+      ]
+    }
+  ]
+}

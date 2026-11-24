@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="http://schemas.xmlsoap.org/wsdl/"
+             xmlns:soap="http://schemas.xmlsoap.org/wsdl/soap/"
+             xmlns:xsd="http://www.w3.org/2001/XMLSchema"
+             xmlns:tns="http://polonorte.beatlech/meteo"
+             targetNamespace="http://polonorte.beatlech/meteo"
+             name="MeteoPoloNorteService">
+
+  <types>
+    <xsd:schema targetNamespace="http://polonorte.beatlech/meteo" elementFormDefault="qualified">
+      <xsd:element name="ObtenerPronosticoRequest">
+        <xsd:complexType>
+          <xsd:sequence>
+            <xsd:element name="zona" type="xsd:string"/>
+            <xsd:element name="fecha" type="xsd:string"/>
+          </xsd:sequence>
+        </xsd:complexType>
+      </xsd:element>
+      <xsd:element name="ObtenerPronosticoResponse">
+        <xsd:complexType>
+          <xsd:sequence>
+            <xsd:element name="pronostico" type="xsd:string"/>
+          </xsd:sequence>
+        </xsd:complexType>
+      </xsd:element>
+    </xsd:schema>
+  </types>
+
+  <message name="ObtenerPronosticoInput">
+    <part name="parameters" element="tns:ObtenerPronosticoRequest"/>
+  </message>
+  <message name="ObtenerPronosticoOutput">
+    <part name="parameters" element="tns:ObtenerPronosticoResponse"/>
+  </message>
+
+  <portType name="MeteoPoloNortePortType">
+    <operation name="ObtenerPronostico">
+      <input message="tns:ObtenerPronosticoInput"/>
+      <output message="tns:ObtenerPronosticoOutput"/>
+    </operation>
+  </portType>
+
+  <binding name="MeteoPoloNorteBinding" type="tns:MeteoPoloNortePortType">
+    <soap:binding style="document" transport="http://schemas.xmlsoap.org/soap/http"/>
+    <operation name="ObtenerPronostico">
+      <soap:operation soapAction="http://polonorte.beatlech/meteo/ObtenerPronostico"/>
+      <input><soap:body use="literal"/></input>
+      <output><soap:body use="literal"/></output>
+    </operation>
+  </binding>
+
+  <service name="MeteoPoloNorteService">
+    <port name="MeteoPoloNortePort" binding="tns:MeteoPoloNorteBinding">
+      <soap:address location="http://127.0.0.1:4001/meteo"/>
+    </port>
+  </service>
+</definitions>
